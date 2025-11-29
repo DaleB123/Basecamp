@@ -7,6 +7,7 @@ import MembersModal from '../components/MembersModal';
 import TripManagementModal from '../components/TripManagementModal';
 import CostTrackingModal from '../components/CostTrackingModal';
 import PackingListModal from '../components/PackingListModal';
+import ChatWidget from '../components/ChatWidget';
 import { getEventIcon, getEventColor, getConflictingEvents, getLeadingEvent, getConflictGroups } from '../utils/eventUtils';
 import moment from 'moment';
 
@@ -746,6 +747,12 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         packingList={localTrip?.packing_list}
         onSave={handleSavePackingList}
         currentID={currentID}
+      />
+
+      <ChatWidget 
+        currentTrip={localTrip} 
+        currentUser={currentUser} 
+        currentID={currentID} 
       />
     </div>
   );

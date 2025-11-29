@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pymongo import MongoClient
 from pydantic import BaseModel
 from datetime import date, datetime
@@ -25,6 +27,16 @@ class PackingItem(BaseModel):
     category: str
     is_shared: bool
     owner_id: str
+
+class ChatMessage(BaseModel):
+    id: str
+    sender_id: str
+    sender_username: str
+    text: str
+    timestamp: str
+
+    class Config:
+        extra = "ignore"
 
 class Trip(BaseModel):
     owner: str
@@ -77,6 +89,7 @@ trips = client["Trips"]
 calendars = trips["Calendars"]
 events = trips["Events"]
 invitations = trips["Invitations"]
+messages_collection = trips["Messages"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,6 +98,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": str(exc.body)},
+    )
 
 @app.get("/")
 def read_root():
@@ -246,6 +267,18 @@ async def get_calendars(id: str):
     
     return {"success": False, "calendars": []}
 
+@app.get("/calendars/{id}")
+async def get_calendar(id: str):
+    from bson import ObjectId
+    try:
+        calendar = calendars.find_one({"_id": ObjectId(id)})
+        if calendar:
+            calendar["_id"] = str(calendar["_id"])
+            return {"success": True, "calendar": calendar}
+        return {"success": False, "message": "Calendar not found"}
+    except:
+        return {"success": False, "message": "Invalid ID"}
+
 @app.post("/calendars")
 async def create_calendar(trip: Trip): 
     # Create new calendar document
@@ -285,6 +318,22 @@ async def update_calendar(id: str, trip: Trip):
         updated_trip["_id"] = str(updated_trip["_id"])
         return {"success": True, "calendar": updated_trip}
     return {"success": False, "message": "Calendar not found."}
+
+@app.post("/calendars/{id}/messages")
+async def add_message(id: str, message: ChatMessage):
+    print(f"Adding message to trip {id}: {message}")
+    msg_data = message.dict()
+    msg_data["trip_id"] = id
+    messages_collection.insert_one(msg_data)
+    return {"success": True, "message": "Message added successfully"}
+
+@app.get("/calendars/{id}/messages")
+async def get_messages(id: str):
+    print(f"Getting messages for trip {id}")
+    trip_messages = list(messages_collection.find({"trip_id": id}))
+    for msg in trip_messages:
+        msg["_id"] = str(msg["_id"])
+    return {"success": True, "messages": trip_messages}
 
 @app.delete("/calendars/{id}")
 async def delete_calendar(id: str):
