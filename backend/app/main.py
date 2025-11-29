@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from pydantic import BaseModel
 from datetime import date, datetime
+from typing import List, Optional
 import os
 
 # Create Pydantic models for request validation
@@ -17,6 +18,14 @@ class LoginCredentials(BaseModel):
     username: str
     password: str
 
+class PackingItem(BaseModel):
+    id: str
+    text: str
+    is_checked: bool
+    category: str
+    is_shared: bool
+    owner_id: str
+
 class Trip(BaseModel):
     owner: str
     name: str
@@ -24,6 +33,7 @@ class Trip(BaseModel):
     end: str
     description: str
     members: list
+    packing_list: List[PackingItem] = []
 
 class Profile(BaseModel):
     old_username: str
@@ -245,7 +255,8 @@ async def create_calendar(trip: Trip):
         "start": trip.start,
         "end": trip.end,
         "description": trip.description,
-        "members": trip.members
+        "members": trip.members,
+        "packing_list": [item.dict() for item in trip.packing_list]
     }
     
     result = calendars.insert_one(new_trip)
@@ -265,7 +276,8 @@ async def update_calendar(id: str, trip: Trip):
         "start": trip.start,
         "end": trip.end,
         "description": trip.description,
-        "members": trip.members
+        "members": trip.members,
+        "packing_list": [item.dict() for item in trip.packing_list]
     }
     result = calendars.update_one({"_id": ObjectId(id)}, {"$set": update_data})
     if result.matched_count == 1:

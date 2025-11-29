@@ -6,6 +6,7 @@ import VotingModal from '../components/VotingModal';
 import MembersModal from '../components/MembersModal';
 import TripManagementModal from '../components/TripManagementModal';
 import CostTrackingModal from '../components/CostTrackingModal';
+import PackingListModal from '../components/PackingListModal';
 import { getEventIcon, getEventColor, getConflictingEvents, getLeadingEvent, getConflictGroups } from '../utils/eventUtils';
 import moment from 'moment';
 
@@ -19,6 +20,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showVotingModal, setShowVotingModal] = useState(false);
   const [showCostModal, setShowCostModal] = useState(false);
+  const [showPackingListModal, setShowPackingListModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [conflictGroups, setConflictGroups] = useState([]);
   const [localTrip, setLocalTrip] = useState(currentTrip);
@@ -358,6 +360,41 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
     setShowModal(false);
     setSelectedEvent(null);
   };
+
+  const handleSavePackingList = async (packingListContent) => {
+    if (!localTrip) return;
+    try {
+      const updatedTrip = { ...localTrip, packing_list: packingListContent };
+      
+      const response = await fetch(url + "/calendars/" + localTrip._id, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          owner: updatedTrip.owner,
+          name: updatedTrip.name,
+          start: updatedTrip.start,
+          end: updatedTrip.end,
+          description: updatedTrip.description,
+          members: updatedTrip.members,
+          packing_list: updatedTrip.packing_list
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setLocalTrip(data.calendar);
+        setError(null);
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      console.error("Error saving packing list:", err);
+      setError('Failed to update packing list');
+    }
+  };
   
   const handleUpdateTrip = async (updatedTrip) => {
     try {
@@ -392,7 +429,8 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           start: updatedTrip.start,
           end: updatedTrip.end,
           description: updatedTrip.description,
-          members: updatedTrip.members
+          members: updatedTrip.members,
+          packing_list: updatedTrip.packing_list
         })
       });
 
@@ -483,6 +521,12 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           </div>
           <div className="flex gap-2">
             <button 
+              onClick={() => setShowPackingListModal(true)} 
+              className="btn btn-info gap-2"
+            >
+              Packing List
+            </button>
+            <button 
               onClick={() => setShowCostModal(true)} 
               className="btn btn-success gap-2"
             >
@@ -515,12 +559,15 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           <div className="flex justify-center py-12">
             <span className="loading loading-spinner loading-lg"></span>
           </div>
-        ) : error ? (
-          <div className="alert alert-error max-w-2xl mx-auto my-8">
-            <span>{error}</span>
-          </div>
         ) : (
           <>
+            {error && (
+              <div className="alert alert-error max-w-2xl mx-auto mb-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>{error}</span>
+                <button onClick={() => setError(null)} className="btn btn-xs btn-ghost">Dismiss</button>
+              </div>
+            )}
             <div className="overflow-x-auto flex gap-6 pl-6 pr-6 pb-6 snap-x snap-mandatory">
               {generateDayCards().map(({ date, events: dayEvents }) => {
                 const conflictGroupsForDay = getConflictGroups(dayEvents);
@@ -691,6 +738,14 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         tripMembers={tripMembers}
         currentID={currentID}
         onMarkPaid={handleMarkPaid}
+      />
+
+      <PackingListModal
+        isOpen={showPackingListModal}
+        onClose={() => setShowPackingListModal(false)}
+        packingList={localTrip?.packing_list}
+        onSave={handleSavePackingList}
+        currentID={currentID}
       />
     </div>
   );
