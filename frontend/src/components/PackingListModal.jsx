@@ -14,9 +14,12 @@ const CATEGORIES = [
 const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) => {
   const [items, setItems] = useState([]);
   const [activeTab, setActiveTab] = useState('shared'); // 'shared' or 'personal'
-  const [newItemText, setNewItemText] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState(CATEGORIES[0]);
   const [isSaving, setIsSaving] = useState(false);
+  const [addingCategory, setAddingCategory] = useState(null);
+  const [addingText, setAddingText] = useState('');
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [extraCategories, setExtraCategories] = useState([]); // To track empty categories
 
   useEffect(() => {
     if (Array.isArray(packingList)) {
@@ -47,21 +50,36 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     }
   };
 
-  const handleAddItem = () => {
-    if (!newItemText.trim()) return;
+  const handleCreateCategory = () => {
+    if (newCategoryName.trim()) {
+        const categoryName = newCategoryName.trim();
+        // Add to extra categories if not already there
+        if (!extraCategories.some(c => c.name === categoryName && c.tab === activeTab)) {
+            setExtraCategories([...extraCategories, { name: categoryName, tab: activeTab }]);
+        }
+        setNewCategoryName('');
+        setIsAddingNewCategory(false);
+        // Automatically open the "Add Item" input for this new category
+        setAddingCategory(categoryName);
+    }
+  };
+
+  const handleInlineSubmit = (category) => {
+    if (!addingText.trim()) return;
 
     const newItem = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      text: newItemText,
+      text: addingText,
       is_checked: false,
-      category: newItemCategory,
+      category: category,
       is_shared: activeTab === 'shared',
       owner_id: currentID || ""
     };
 
     const updatedItems = [...items, newItem];
     setItems(updatedItems);
-    setNewItemText('');
+    setAddingText('');
+    setAddingCategory(null);
     saveItems(updatedItems);
   };
 
@@ -86,6 +104,8 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
             return item.is_shared || item.owner_id !== currentID;
         });
         setItems(itemsToKeep);
+        // Also clear extra categories for the current tab
+        setExtraCategories(prev => prev.filter(c => c.tab !== activeTab));
         saveItems(itemsToKeep);
     }
   };
@@ -95,10 +115,19 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     return !item.is_shared && item.owner_id === currentID;
   });
 
-  // Group by category
-  const groupedItems = filteredItems.reduce((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category].push(item);
+  // Get all used categories
+  const usedCategories = [...new Set(filteredItems.map(i => i.category))];
+  
+  // Combine used and extra categories for current tab
+  const currentExtraCategories = extraCategories
+    .filter(c => c.tab === activeTab)
+    .map(c => c.name);
+    
+  const displayCategories = [...new Set([...usedCategories, ...currentExtraCategories])];
+
+  // Group items
+  const groupedItems = displayCategories.reduce((acc, category) => {
+    acc[category] = filteredItems.filter(i => i.category === category);
     return acc;
   }, {});
 
@@ -115,13 +144,52 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
             </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto pr-2">
-            {Object.keys(groupedItems).length === 0 && (
-                <div className="text-center text-gray-500 mt-10">No items yet. Add one below!</div>
+        <div className="flex-1 overflow-y-auto pr-2 group/list relative">
+            {isAddingNewCategory && (
+                <div className="bg-base-200 p-4 rounded-lg mb-4">
+                    <h3 className="font-bold mb-2">New Category</h3>
+                    <div className="flex gap-2 mb-2">
+                        <input 
+                            type="text" 
+                            className="input input-bordered input-sm flex-1"
+                            placeholder="Category Name"
+                            value={newCategoryName}
+                            onChange={e => setNewCategoryName(e.target.value)}
+                            autoFocus
+                            onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={handleCreateCategory}>Create</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setIsAddingNewCategory(false)}>Cancel</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {CATEGORIES.filter(c => !displayCategories.includes(c)).map(cat => (
+                            <button 
+                                key={cat} 
+                                className="badge badge-outline cursor-pointer hover:bg-primary hover:text-primary-content"
+                                onClick={() => {
+                                    setNewCategoryName(cat);
+                                    if (!extraCategories.some(c => c.name === cat && c.tab === activeTab)) {
+                                         setExtraCategories([...extraCategories, { name: cat, tab: activeTab }]);
+                                         setAddingCategory(cat);
+                                         setIsAddingNewCategory(false);
+                                    }
+                                }}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {displayCategories.length === 0 && !isAddingNewCategory && (
+                <div className="text-center text-gray-500 mt-10">
+                    No items yet. Click "Add Category" to start!
+                </div>
             )}
             
             {Object.entries(groupedItems).map(([category, categoryItems]) => (
-                <div key={category} className="mb-6">
+                <div key={category} className="mb-6 group">
                     <h3 className="font-bold text-lg mb-2 text-primary border-b border-base-300 pb-1">{category}</h3>
                     <div className="space-y-2">
                         {categoryItems.map(item => (
@@ -142,32 +210,56 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
                             </div>
                         ))}
                     </div>
+                    
+                    {addingCategory === category ? (
+                        <div className="mt-2 flex gap-2">
+                            <input 
+                                type="text" 
+                                className="input input-bordered input-sm flex-1"
+                                autoFocus
+                                placeholder={`Add to ${category}...`}
+                                value={addingText}
+                                onChange={(e) => setAddingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleInlineSubmit(category);
+                                    if (e.key === 'Escape') setAddingCategory(null);
+                                }}
+                            />
+                            <button 
+                                className="btn btn-primary btn-sm"
+                                onClick={() => handleInlineSubmit(category)}
+                            >
+                                Add
+                            </button>
+                            <button 
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setAddingCategory(null)}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    ) : (
+                        <button 
+                            className="btn btn-ghost btn-sm btn-block mt-2 opacity-0 group-hover:opacity-100 transition-opacity justify-start text-base-content/50 hover:text-base-content"
+                            onClick={() => {
+                                setAddingCategory(category);
+                                setAddingText('');
+                            }}
+                        >
+                            <PlusIcon /> Add item to {category}
+                        </button>
+                    )}
                 </div>
             ))}
+
+            <div className="opacity-0 group-hover/list:opacity-100 transition-opacity flex justify-center py-4">
+                 <button className="btn btn-sm btn-ghost gap-2" onClick={() => setIsAddingNewCategory(true)}>
+                    <PlusIcon /> Add New Category
+                 </button>
+            </div>
         </div>
 
         <div className="mt-4 pt-4 border-t border-base-300">
-            <div className="flex gap-2 mb-4">
-                <select 
-                    className="select select-bordered select-sm"
-                    value={newItemCategory}
-                    onChange={(e) => setNewItemCategory(e.target.value)}
-                >
-                    {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-                <input 
-                    type="text" 
-                    className="input input-bordered input-sm flex-1" 
-                    placeholder="Add new item..."
-                    value={newItemText}
-                    onChange={(e) => setNewItemText(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
-                />
-                <button className="btn btn-primary btn-sm" onClick={handleAddItem}>
-                    <div className="w-5 h-5"><PlusIcon /></div> Add
-                </button>
-            </div>
-
             <div className="modal-action flex justify-between gap-2 items-center">
                 <button className="btn btn-error btn-outline" onClick={handleClearList}>Clear List</button>
                 <div className="flex gap-2 items-center">
