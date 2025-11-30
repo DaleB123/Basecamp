@@ -197,14 +197,14 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
     }
   };
 
-  const TripCard = ({ trip }) => (
+  const TripCard = ({ trip, allowDelete = false }) => (
     <div 
       key={trip._id} 
-      className={`card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 cursor-pointer ${isDeleteMode ? 'ring-2 ring-error' : ''}`} 
+      className={`card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 cursor-pointer ${isDeleteMode && allowDelete ? 'ring-2 ring-error' : ''}`} 
       onClick={(e) => {
-        if (isDeleteMode) {
+        if (isDeleteMode && allowDelete) {
           handleDeleteTrip(trip._id, e);
-        } else {
+        } else if (!isDeleteMode) {
           setCurrentTrip({
             _id: trip._id,
             name: trip.name,
@@ -352,7 +352,7 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold text-base-content">My Trips</h1>
           <div className="flex gap-4 items-center">
-            {trips.length > 0 && (
+            {myTrips.length > 0 && (
               <button
                 onClick={() => setIsDeleteMode(!isDeleteMode)}
                 className={`btn btn-circle ${isDeleteMode ? 'btn-error' : 'btn-ghost'}`}
@@ -424,7 +424,7 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {myTrips.map((trip) => (
-                    <TripCard key={trip._id} trip={trip} />
+                    <TripCard key={trip._id} trip={trip} allowDelete={true} />
                   ))}
                 </div>
               )}
@@ -442,7 +442,7 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {sharedTrips.map((trip) => (
-                    <TripCard key={trip._id} trip={trip} />
+                    <TripCard key={trip._id} trip={trip} allowDelete={false} />
                   ))}
                 </div>
               )}
