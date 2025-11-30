@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { TrashIcon } from '../components/Icons';
 
 const formatDisplayDate = (dateString) => {
   if (!dateString) return '';
@@ -15,6 +16,7 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [newTrip, setNewTrip] = useState({
     name: '',
     start: '',
@@ -176,21 +178,44 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
     }
   };
 
+  const handleDeleteTrip = async (tripId, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this trip? This action cannot be undone.")) return;
+
+    try {
+      const response = await fetch(url + '/calendars/' + tripId, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        setTrips(prev => prev.filter(trip => trip._id !== tripId));
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError('Failed to delete trip');
+    }
+  };
+
   const TripCard = ({ trip }) => (
     <div 
       key={trip._id} 
-      className="card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 cursor-pointer" 
-      onClick={() => {
-        setCurrentTrip({
-          _id: trip._id,
-          name: trip.name,
-          start: trip.start,
-          end: trip.end,
-          description: trip.description,
-          owner: trip.owner,
-          members: trip.members
-        });
-        setCurrentPage('itinerary');
+      className={`card bg-base-100 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 cursor-pointer ${isDeleteMode ? 'ring-2 ring-error' : ''}`} 
+      onClick={(e) => {
+        if (isDeleteMode) {
+          handleDeleteTrip(trip._id, e);
+        } else {
+          setCurrentTrip({
+            _id: trip._id,
+            name: trip.name,
+            start: trip.start,
+            end: trip.end,
+            description: trip.description,
+            owner: trip.owner,
+            members: trip.members
+          });
+          setCurrentPage('itinerary');
+        }
       }}
     >
       <div className="card-body p-8">
@@ -326,14 +351,25 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="flex justify-between items-center mb-12">
           <h1 className="text-4xl font-bold text-base-content">My Trips</h1>
-          {trips.length > 0 ? (
-            <button 
-              onClick={() => setIsModalOpen(true)} 
-              className="btn btn-primary btn-lg"
-            >
-              + Create New Trip
-            </button>
-          ) : null}
+          <div className="flex gap-4 items-center">
+            {trips.length > 0 && (
+              <button
+                onClick={() => setIsDeleteMode(!isDeleteMode)}
+                className={`btn btn-circle ${isDeleteMode ? 'btn-error' : 'btn-ghost'}`}
+                title={isDeleteMode ? "Done deleting" : "Delete trips"}
+              >
+                <TrashIcon />
+              </button>
+            )}
+            {trips.length > 0 ? (
+              <button 
+                onClick={() => setIsModalOpen(true)} 
+                className="btn btn-primary btn-lg"
+              >
+                + Create New Trip
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {isLoading ? (
