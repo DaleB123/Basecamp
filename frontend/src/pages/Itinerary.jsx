@@ -545,7 +545,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
               {moment(localTrip?.start).format('MMM D')} - {moment(localTrip?.end).format('MMM D, YYYY')}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-4 items-center">
             {isOwner && (
               <button 
                 onClick={() => setShowTripModal(true)} 
@@ -554,6 +554,19 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
                 Manage Trip
               </button>
             )}
+
+            <div className="stats shadow">
+              <div className="stat py-2 px-4">
+                <div className="stat-title text-xs">Your Cost</div>
+                <div className="stat-value text-lg text-success">${getUserTotalCost().toFixed(2)}</div>
+              </div>
+              
+              <div className="stat py-2 px-4">
+                <div className="stat-title text-xs">Trip Cost</div>
+                <div className="stat-value text-lg text-primary">${getTripTotalCost().toFixed(2)}</div>
+              </div>
+            </div>
+
             <button 
               onClick={() => setCurrentPage('trips')} 
               className="btn btn-ghost"
@@ -680,18 +693,6 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
                   </div>
                 );
               })}
-            </div>
-
-            <div className="stats shadow mt-6">
-              <div className="stat">
-                <div className="stat-title">Your Total Cost</div>
-                <div className="stat-value text-success">${getUserTotalCost().toFixed(2)}</div>
-              </div>
-              
-              <div className="stat">
-                <div className="stat-title">Trip Total Cost</div>
-                <div className="stat-value text-primary">${getTripTotalCost().toFixed(2)}</div>
-              </div>
             </div>
           </>
         )}
