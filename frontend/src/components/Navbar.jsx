@@ -12,7 +12,7 @@ function Navbar({ theme, toggleTheme, currentUser, onLogout, setCurrentPage }) {
               <ProfileIcon/>
             </div>
           </label>
-          <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box whitespace-nowrap">
+          <ul tabIndex={0} className="mt-3 z-50 p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box whitespace-nowrap">
             <li className="menu-title px-4 py-2">
               Welcome, {currentUser}!
             </li>
