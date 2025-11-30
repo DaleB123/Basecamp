@@ -36,6 +36,20 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Fetch trip data first
+        const tripResponse = await fetch(url + "/calendars/" + localTrip._id, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        const tripData = await tripResponse.json();
+        
+        if (tripData.success) {
+          setLocalTrip(tripData.calendar);
+        }
+
         // Fetch events
         const eventsResponse = await fetch(url + "/events/trip/" + localTrip._id, {
           method: 'GET',
@@ -94,7 +108,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
     if (localTrip) {
       fetchData();
     }
-  }, [localTrip, url]);
+  }, [localTrip._id, url]);
 
   const getUserTotalCost = () => {
     let total = 0;
@@ -365,21 +379,19 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
   const handleSavePackingList = async (packingListContent) => {
     if (!localTrip) return;
     try {
-      const updatedTrip = { ...localTrip, packing_list: packingListContent };
-      
       const response = await fetch(url + "/calendars/" + localTrip._id, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          owner: updatedTrip.owner,
-          name: updatedTrip.name,
-          start: updatedTrip.start,
-          end: updatedTrip.end,
-          description: updatedTrip.description,
-          members: updatedTrip.members,
-          packing_list: updatedTrip.packing_list
+          owner: localTrip.owner,
+          name: localTrip.name,
+          start: localTrip.start,
+          end: localTrip.end,
+          description: localTrip.description,
+          members: localTrip.members,
+          packing_list: packingListContent
         })
       });
       
@@ -389,7 +401,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         setLocalTrip(data.calendar);
         setError(null);
       } else {
-        setError(data.message);
+        setError(data.message || 'Failed to update packing list');
       }
     } catch (err) {
       console.error("Error saving packing list:", err);
