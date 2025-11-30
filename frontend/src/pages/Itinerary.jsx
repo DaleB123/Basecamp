@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, CheckIcon } from '../components/Icons';
+import { PlusIcon, CheckIcon, UsersIcon } from '../components/Icons';
 import Navbar from '../components/Navbar';
 import EventModal from '../components/EventModal';
 import VotingModal from '../components/VotingModal';
@@ -503,7 +503,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
   };
 
   return (
-    <div data-theme={theme} className="min-h-screen bg-base-200">
+    <div data-theme={theme} className="min-h-screen bg-base-200 relative">
       <Navbar 
         theme={theme}
         toggleTheme={toggleTheme}
@@ -512,6 +512,17 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         setCurrentPage={setCurrentPage}
       />
       
+      {/* Members Button - Aligned with Chat Widget */}
+      <div className="absolute right-6 top-28 z-10">
+        <button 
+          onClick={() => setShowMembersModal(true)} 
+          className="btn btn-circle btn-primary shadow-lg"
+          title="Members"
+        >
+          <UsersIcon />
+        </button>
+      </div>
+
       <div className="max-w-7xl mx-auto px-8 py-12">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -532,12 +543,6 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
               className="btn btn-success gap-2"
             >
               Costs
-            </button>
-            <button 
-              onClick={() => setShowMembersModal(true)} 
-              className="btn btn-primary gap-2"
-            >
-              Members
             </button>
             {isOwner && (
               <button 
