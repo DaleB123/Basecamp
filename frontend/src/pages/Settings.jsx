@@ -381,7 +381,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
             {/* Delete Account Section */}
             <div className="card bg-base-100 shadow-xl mt-8 border-2 border-error">
               <div className="card-body p-8">
-                <h2 className="card-title text-2xl mb-4 text-error">Danger Zone</h2>
+                <h2 className="card-title text-2xl mb-4 text-error">Delete Account</h2>
                 <p className="mb-4">Once you delete your account, there is no going back. Please be certain.</p>
                 <div className="card-actions justify-end">
                   <button 
