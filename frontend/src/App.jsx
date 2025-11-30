@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Itinerary from './pages/Itinerary';
 import Trips from './pages/Trips';
-import Profile from './pages/Profile';
+import Settings from './pages/Settings';
 
 function App() {
   const [currentPage, setCurrentPage] = useState(() => {
@@ -125,9 +125,9 @@ function App() {
     );
   }
   
-  if (currentPage === 'profile') {
+  if (currentPage === 'settings') {
     return (
-      <Profile
+      <Settings
         setCurrentPage={setCurrentPage}
         theme={theme}
         toggleTheme={toggleTheme}

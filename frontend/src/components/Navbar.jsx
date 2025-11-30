@@ -16,11 +16,6 @@ function Navbar({ theme, toggleTheme, currentUser, onLogout, setCurrentPage }) {
             <li className="menu-title px-4 py-2">
               Welcome, {currentUser}!
             </li>
-            <li>
-              <a onClick={() => setCurrentPage('profile')} className="justify-between">
-                Profile
-              </a>
-            </li>
             <li><a onClick={() => setCurrentPage('settings')}>Settings</a></li>
             <li><a onClick={onLogout} className="text-error">Logout</a></li>
           </ul>
