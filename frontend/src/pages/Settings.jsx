@@ -143,6 +143,25 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      try {
+        const response = await fetch(url + '/profiles/' + currentUser, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (data.success) {
+          onLogout();
+        } else {
+          alert(data.message || "Failed to delete account");
+        }
+      } catch (error) {
+        console.error("Error deleting account:", error);
+        alert("An error occurred while deleting your account.");
+      }
+    }
+  };
+
   return (
     <div data-theme={theme} className="min-h-screen bg-base-200">
       <Navbar
@@ -356,6 +375,22 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
                     </div>
                   </div>
                 </form>
+              </div>
+            </div>
+
+            {/* Delete Account Section */}
+            <div className="card bg-base-100 shadow-xl mt-8 border-2 border-error">
+              <div className="card-body p-8">
+                <h2 className="card-title text-2xl mb-4 text-error">Danger Zone</h2>
+                <p className="mb-4">Once you delete your account, there is no going back. Please be certain.</p>
+                <div className="card-actions justify-end">
+                  <button 
+                    onClick={handleDeleteAccount}
+                    className="btn btn-error text-white"
+                  >
+                    Delete Account
+                  </button>
+                </div>
               </div>
             </div>
           </div>

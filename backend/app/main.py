@@ -199,6 +199,17 @@ async def update_password(password_data: PasswordUpdate):
         return {"success": True, "message": "Password updated successfully"}
     return {"success": False, "message": "Failed to update password"}
 
+@app.delete("/profiles/{username}")
+async def delete_user(username: str):
+    if not username:
+        raise HTTPException(status_code=400, detail="Username is required.")
+    
+    result = users.delete_one({"username": username})
+    
+    if result.deleted_count == 1:
+        return {"success": True, "message": "User deleted successfully"}
+    return {"success": False, "message": "User not found"}
+
 @app.post("/login")
 async def login(credentials: LoginCredentials):
     username = credentials.username
