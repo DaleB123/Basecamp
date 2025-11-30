@@ -111,4 +111,20 @@ const UsersIcon = () => (
   </svg>
 );
 
-export { CalendarIcon, VoteIcon, MoneyIcon, BasecampIcon, LightIcon, DarkIcon, ProfileIcon, PlusIcon, TrashIcon, FlightIcon, HotelIcon, FoodIcon, ActivityIcon, OtherIcon, CheckIcon, ChatIcon, SendIcon, XMarkIcon, UsersIcon };
+const BackpackIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 10a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 21v-5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v5" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 18h8" />
+  </svg>
+);
+
+const DollarIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+export { CalendarIcon, VoteIcon, MoneyIcon, BasecampIcon, LightIcon, DarkIcon, ProfileIcon, PlusIcon, TrashIcon, FlightIcon, HotelIcon, FoodIcon, ActivityIcon, OtherIcon, CheckIcon, ChatIcon, SendIcon, XMarkIcon, UsersIcon, BackpackIcon, DollarIcon };

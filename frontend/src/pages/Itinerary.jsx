@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, CheckIcon, UsersIcon } from '../components/Icons';
+import { PlusIcon, CheckIcon, UsersIcon, DollarIcon, BackpackIcon } from '../components/Icons';
 import Navbar from '../components/Navbar';
 import EventModal from '../components/EventModal';
 import VotingModal from '../components/VotingModal';
@@ -512,14 +512,28 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         setCurrentPage={setCurrentPage}
       />
       
-      {/* Members Button - Aligned with Chat Widget */}
-      <div className="absolute right-6 top-28 z-10">
+      {/* Side Action Buttons - Aligned with Chat Widget */}
+      <div className="absolute right-6 top-28 z-10 flex flex-col gap-4">
         <button 
           onClick={() => setShowMembersModal(true)} 
-          className="btn btn-circle btn-primary shadow-lg"
+          className="btn btn-circle btn-primary shadow-lg text-white"
           title="Members"
         >
           <UsersIcon />
+        </button>
+        <button 
+          onClick={() => setShowCostModal(true)} 
+          className="btn btn-circle btn-success shadow-lg text-black"
+          title="Expenses"
+        >
+          <DollarIcon />
+        </button>
+        <button 
+          onClick={() => setShowPackingListModal(true)} 
+          className="btn btn-circle btn-info shadow-lg text-black"
+          title="Packing List"
+        >
+          <BackpackIcon />
         </button>
       </div>
 
@@ -532,18 +546,6 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
             </p>
           </div>
           <div className="flex gap-2">
-            <button 
-              onClick={() => setShowPackingListModal(true)} 
-              className="btn btn-info gap-2"
-            >
-              Packing List
-            </button>
-            <button 
-              onClick={() => setShowCostModal(true)} 
-              className="btn btn-success gap-2"
-            >
-              Costs
-            </button>
             {isOwner && (
               <button 
                 onClick={() => setShowTripModal(true)} 
