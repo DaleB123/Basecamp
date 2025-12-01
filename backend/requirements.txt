@@ -1,3 +1,5 @@
 fastapi
 uvicorn[standard]
 pymongo
+fastapi-cors
+python-dotenv 
