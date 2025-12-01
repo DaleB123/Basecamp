@@ -1,7 +1,14 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿/**
+ * Trips Page - View and manage all trips (owned and shared)
+ * Features: Trip creation, trip deletion (owned only), invitation management
+ * Displays: "My Trips" (owned) and "Shared With Me" sections separately
+ */
+
+import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { TrashIcon } from '../components/Icons';
 
+// Helper function to format dates for display (compensates for timezone offset)
 const formatDisplayDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -11,12 +18,17 @@ const formatDisplayDate = (dateString) => {
 };
 
 function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onLogout, setCurrentTrip }) {
-  const [trips, setTrips] = useState([]);
-  const [invitations, setInvitations] = useState([]);
+  // Data states
+  const [trips, setTrips] = useState([]);  // All trips (owned + shared)
+  const [invitations, setInvitations] = useState([]);  // Pending trip invitations
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
+  
+  // UI states
+  const [isModalOpen, setIsModalOpen] = useState(false);  // Create trip modal
+  const [isDeleteMode, setIsDeleteMode] = useState(false);  // Delete mode toggle
+  
+  // New trip form data
   const [newTrip, setNewTrip] = useState({
     name: '',
     start: '',
@@ -26,7 +38,7 @@ function Trips({ setCurrentPage, theme, toggleTheme, currentUser, currentID, onL
 
   const url = "http://localhost:8000";
 
-  // Separate trips into owned and shared
+  // Separate trips into owned and shared for organized display
   const myTrips = trips.filter(trip => trip.owner === currentID);
   const sharedTrips = trips.filter(trip => trip.owner !== currentID && trip.members.includes(currentID));
 

@@ -1,6 +1,19 @@
+/**
+ * PackingListModal.jsx - Trip Packing List Management Component
+ * 
+ * Allows trip members to create and manage packing lists with the following features:
+ * - Group List: Shared items visible to all trip members
+ * - Personal List: Private items visible only to the owner
+ * - Category-based organization for better structure
+ * - Custom category creation for flexibility
+ * - Checkbox tracking for packed items
+ * - Persistent storage tied to trip data
+ */
+
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from './Icons';
 
+// Predefined categories for quick selection
 const CATEGORIES = [
   "Clothing",
   "Toiletries",
@@ -12,20 +25,34 @@ const CATEGORIES = [
 ];
 
 const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) => {
+  // Items state - array of packing list items with properties:
+  // {id, text, is_checked, category, is_shared, owner_id}
   const [items, setItems] = useState([]);
-  const [activeTab, setActiveTab] = useState('shared'); // 'shared' or 'personal'
+  
+  // UI state for tab navigation (shared vs personal lists)
+  const [activeTab, setActiveTab] = useState('shared');
+  
+  // Saving indicator for user feedback
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Inline add item state - tracks which category is currently accepting new items
   const [addingCategory, setAddingCategory] = useState(null);
   const [addingText, setAddingText] = useState('');
+  
+  // New category creation state
   const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [extraCategories, setExtraCategories] = useState([]); // To track empty categories
+  
+  // Tracks empty categories that should still be displayed
+  const [extraCategories, setExtraCategories] = useState([]);
 
+  // Initialize items from packingList prop whenever modal opens or data changes
+  // Handles migration from legacy string format to new structured array format
   useEffect(() => {
     if (Array.isArray(packingList)) {
       setItems(packingList);
     } else if (typeof packingList === 'string' && packingList.length > 0) {
-        // Migration for legacy string data
+        // Migration for legacy string data - convert to structured format
         setItems([{
             id: Date.now().toString(),
             text: packingList,
@@ -50,6 +77,8 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     }
   };
 
+  // Create a new category and automatically open the add item input
+  // Prevents duplicate categories and associates category with current tab
   const handleCreateCategory = () => {
     if (newCategoryName.trim()) {
         const categoryName = newCategoryName.trim();
@@ -64,15 +93,17 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     }
   };
 
+  // Add a new item to the specified category
+  // Generates unique ID and sets ownership based on active tab
   const handleInlineSubmit = (category) => {
     if (!addingText.trim()) return;
 
     const newItem = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),  // Unique ID
       text: addingText,
       is_checked: false,
       category: category,
-      is_shared: activeTab === 'shared',
+      is_shared: activeTab === 'shared',  // Shared items visible to all, personal only to owner
       owner_id: currentID || ""
     };
 
@@ -80,7 +111,7 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     setItems(updatedItems);
     setAddingText('');
     setAddingCategory(null);
-    saveItems(updatedItems);
+    saveItems(updatedItems);  // Persist immediately
   };
 
   const handleToggleItem = (itemId) => {
@@ -97,9 +128,12 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     saveItems(updatedItems);
   };
 
+  // Clear all items from the current tab's list
+  // Preserves items from the other tab to prevent accidental data loss
   const handleClearList = () => {
     if (window.confirm("Are you sure you want to clear all items in this list?")) {
         const itemsToKeep = items.filter(item => {
+            // If on shared tab, keep personal items; if on personal, keep shared and others' items
             if (activeTab === 'shared') return !item.is_shared;
             return item.is_shared || item.owner_id !== currentID;
         });
@@ -110,22 +144,23 @@ const PackingListModal = ({ isOpen, onClose, packingList, onSave, currentID }) =
     }
   };
 
+  // Filter items based on active tab (shared vs personal)
   const filteredItems = items.filter(item => {
     if (activeTab === 'shared') return item.is_shared;
     return !item.is_shared && item.owner_id === currentID;
   });
 
-  // Get all used categories
+  // Get all categories that have items in them
   const usedCategories = [...new Set(filteredItems.map(i => i.category))];
   
-  // Combine used and extra categories for current tab
+  // Combine used categories with empty categories that should still be displayed
   const currentExtraCategories = extraCategories
     .filter(c => c.tab === activeTab)
     .map(c => c.name);
     
   const displayCategories = [...new Set([...usedCategories, ...currentExtraCategories])];
 
-  // Group items
+  // Group items by category for organized display
   const groupedItems = displayCategories.reduce((acc, category) => {
     acc[category] = filteredItems.filter(i => i.category === category);
     return acc;

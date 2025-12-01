@@ -1,23 +1,32 @@
+/**
+ * Login Page - User authentication interface
+ * Features: Username/password login, navigation to signup, error messages
+ * On success: Sets user session and navigates to trips page
+ */
+
 import React, { useState, useEffect } from 'react';
 
 function Login({ setCurrentPage, theme, setCurrentID, setCurrentUser }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  // Form field states
+  const [username, setUsername] = useState("");  // Username input
+  const [password, setPassword] = useState("");  // Password input
+  const [message, setMessage] = useState("");  // Success/error message
 
   const url = "http://localhost:8000";
 
+  // Handle successful login: set user session and navigate
   const onLoginSuccess = (username, id) => {
     setCurrentUser(username);
     setCurrentID(id);
     setCurrentPage('trips');
   };
 
+  // Handle login form submission
   const handleLogin = async (e) => {
-    e.preventDefault(); // Prevent form from refreshing the page
+    e.preventDefault();  // Prevent page refresh
 
     try {
-      // POST to the /login endpoint
+      // Send credentials to backend
       const response = await fetch(url+"/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,9 +37,10 @@ function Login({ setCurrentPage, theme, setCurrentID, setCurrentUser }) {
 
       if (response.ok && data.success) {
         setMessage("Login successful!");
-        // Call the onLoginSuccess function from App.jsx
+        // Set user session and navigate to trips page
         onLoginSuccess(username, data.id); 
       } else {
+        // Display error message from backend
         setMessage(data.message || data.detail || "Invalid username or password.");
       }
     } catch (error) {

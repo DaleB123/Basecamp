@@ -1,13 +1,28 @@
+/**
+ * Home.jsx - Landing Page Component
+ * 
+ * The main landing page for the Basecamp trip planning application.
+ * Displays an engaging hero section with call-to-action and showcases
+ * the three core features:
+ * - Collaborative Itinerary Planning
+ * - Group Voting for Decision Making
+ * - Expense Splitting and Tracking
+ * 
+ * Routes users to login or trips page based on authentication status.
+ */
+
 import React from 'react';
 import { CalendarIcon, VoteIcon, MoneyIcon } from '../components/Icons';
 import Navbar from '../components/Navbar';
 
+// Hero section background image
 const HeroImage = "https://images.unsplash.com/photo-1501785888041-af3ef285b470?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170";
 
 function Home({ setCurrentPage, theme, toggleTheme, currentUser, onLogout }) {
   
+  // Handle the "Get Started" button click
+  // Routes authenticated users to trips page, others to login
   const handleGetStarted = () => {
-    // If user is logged in, go to itinerary. If not, go to signup.
     if (currentUser) {
       setCurrentPage('trips');
     } else {

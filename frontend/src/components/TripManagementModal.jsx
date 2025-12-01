@@ -1,12 +1,19 @@
+/**
+ * TripManagementModal Component - Edit trip details and manage trip duration
+ * Features: Edit name/description, add/remove days from start/end, delete trip
+ * Owner-only modal for trip configuration and management
+ */
+
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, TrashIcon } from './Icons';
 import moment from 'moment';
 
 const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChanges, onDeleteTrip }) => {
-  const [tripName, setTripName] = useState('');
-  const [tripDescription, setTripDescription] = useState('');
-  const [tempStartDate, setTempStartDate] = useState('');
-  const [tempEndDate, setTempEndDate] = useState('');
+  // Trip detail states
+  const [tripName, setTripName] = useState('');  // Editable trip name
+  const [tripDescription, setTripDescription] = useState('');  // Editable description
+  const [tempStartDate, setTempStartDate] = useState('');  // Working copy of start date
+  const [tempEndDate, setTempEndDate] = useState('');  // Working copy of end date
 
   useEffect(() => {
     if (currentTrip) {
@@ -19,10 +26,12 @@ const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChang
 
   if (!isOpen) return null;
 
+  // Calculate trip duration for display
   const tripStart = moment(tempStartDate);
   const tripEnd = moment(tempEndDate);
   const duration = tripEnd.diff(tripStart, 'days') + 1;
   
+  // Add a day to the start or end of the trip
   const handleAddDay = (position) => {
     if (position === 'start') {
       setTempStartDate(moment(tempStartDate).subtract(1, 'day').format('YYYY-MM-DD'));
@@ -31,8 +40,9 @@ const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChang
     }
   };
 
+  // Remove a day from the start or end (with event conflict warning)
   const handleRemoveDay = (position) => {
-    if (duration <= 1) return;
+    if (duration <= 1) return;  // Must have at least 1 day
     
     if (position === 'start') {
       const dateToRemove = moment(tempStartDate);
@@ -61,12 +71,15 @@ const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChang
     }
   };
   
+  // Save trip changes and close modal
   const handleSave = () => {
+    // Validation: trip name is required
     if (!tripName.trim()) {
       alert("Trip name is required.");
       return;
     }
     
+    // Pass updated trip data to parent component
     onSaveChanges({
       ...currentTrip,
       name: tripName,
@@ -77,6 +90,7 @@ const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChang
     onClose();
   };
 
+  // Cancel changes and revert to original values
   const handleCancel = () => {
     setTripName(currentTrip.name || '');
     setTripDescription(currentTrip.description || '');
@@ -85,6 +99,7 @@ const TripManagementModal = ({ isOpen, onClose, currentTrip, events, onSaveChang
     onClose();
   };
 
+  // Delete the entire trip with confirmation
   const handleDelete = () => {
     if (window.confirm(`Are you sure you want to delete "${currentTrip.name}"? This will permanently delete all events in this trip.`)) {
       onDeleteTrip(currentTrip._id);

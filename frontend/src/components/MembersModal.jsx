@@ -1,14 +1,23 @@
+/**
+ * MembersModal Component - Manage trip members and invitations
+ * Features: View members, invite users, remove members, revoke invitations
+ * Owner-only actions: invite, remove members, revoke invitations
+ */
+
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, TrashIcon } from './Icons';
+import { TrashIcon, PlusIcon } from './Icons';
 
 const MembersModal = ({ isOpen, onClose, currentTrip, currentID, isOwner, onMembersUpdate }) => {
-  const [members, setMembers] = useState([]);
-  const [pendingInvitations, setPendingInvitations] = useState([]);
-  const [username, setUsername] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState('');
-  const [showInviteForm, setShowInviteForm] = useState(false);
+  // Data states
+  const [members, setMembers] = useState([]);  // Full member details with profiles
+  const [pendingInvitations, setPendingInvitations] = useState([]);  // Pending invites for this trip
+  
+  // Form states
+  const [username, setUsername] = useState('');  // Username input for new invitation
+  const [isLoading, setIsLoading] = useState(false);  // Loading state for async operations
+  const [message, setMessage] = useState('');  // Success/error message text
+  const [messageType, setMessageType] = useState('');  // 'success' or 'error'
+  const [showInviteForm, setShowInviteForm] = useState(false);  // Toggle invite form visibility
 
   const url = "http://localhost:8000";
 

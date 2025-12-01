@@ -1,3 +1,10 @@
+/**
+ * Itinerary Page - Main trip management interface
+ * Features: Day-by-day event cards, conflict resolution voting, cost tracking,
+ *           member management, packing list, and trip chat
+ * Handles: Event CRUD, cost splitting, payment tracking, trip updates
+ */
+
 import React, { useState, useEffect } from 'react';
 import { PlusIcon, CheckIcon, UsersIcon, DollarIcon, BackpackIcon } from '../components/Icons';
 import Navbar from '../components/Navbar';
@@ -12,31 +19,38 @@ import { getEventIcon, getEventColor, getConflictingEvents, getLeadingEvent, get
 import moment from 'moment';
 
 function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID, currentTrip, onLogout }) {
-  const [events, setEvents] = useState([]);
-  const [tripMembers, setTripMembers] = useState([]);
+  // Core data states
+  const [events, setEvents] = useState([]);  // All events for this trip
+  const [tripMembers, setTripMembers] = useState([]);  // Full member details
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [showTripModal, setShowTripModal] = useState(false);
-  const [showMembersModal, setShowMembersModal] = useState(false);
-  const [showVotingModal, setShowVotingModal] = useState(false);
-  const [showCostModal, setShowCostModal] = useState(false);
-  const [showPackingListModal, setShowPackingListModal] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
-  const [conflictGroups, setConflictGroups] = useState([]);
-  const [localTrip, setLocalTrip] = useState(currentTrip);
+  
+  // Modal visibility states
+  const [showModal, setShowModal] = useState(false);  // Event create/edit modal
+  const [showTripModal, setShowTripModal] = useState(false);  // Trip settings modal
+  const [showMembersModal, setShowMembersModal] = useState(false);  // Member management modal
+  const [showVotingModal, setShowVotingModal] = useState(false);  // Conflict voting modal
+  const [showCostModal, setShowCostModal] = useState(false);  // Cost tracking modal
+  const [showPackingListModal, setShowPackingListModal] = useState(false);  // Packing list modal
+  
+  // Selection and conflict states
+  const [selectedEvent, setSelectedEvent] = useState(null);  // Event being edited
+  const [conflictGroups, setConflictGroups] = useState([]);  // Overlapping events for voting
+  const [localTrip, setLocalTrip] = useState(currentTrip);  // Local copy of trip data
 
   const url = "http://localhost:8000";
-  const isOwner = localTrip?.owner === currentID;
+  const isOwner = localTrip?.owner === currentID;  // Check if current user owns this trip
 
+  // Sync local trip with parent when prop changes
   useEffect(() => {
     setLocalTrip(currentTrip);
   }, [currentTrip]);
 
+  // Fetch all trip data (trip details, events, members) on mount and when trip changes
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch trip data first
+        // 1. Fetch latest trip data (includes packing list)
         const tripResponse = await fetch(url + "/calendars/" + localTrip._id, {
           method: 'GET',
           headers: {
@@ -50,7 +64,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           setLocalTrip(tripData.calendar);
         }
 
-        // Fetch events
+        // 2. Fetch all events for this trip
         const eventsResponse = await fetch(url + "/events/trip/" + localTrip._id, {
           method: 'GET',
           headers: {
@@ -61,13 +75,14 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
         const eventsData = await eventsResponse.json();
         
         if (eventsData.success) {
+          // Transform backend snake_case to frontend camelCase
           const sortedEvents = eventsData.events
             .map(event => ({
               ...event,
               start: new Date(event.start),
               end: new Date(event.end),
               votes: event.votes || [],
-              costAssignments: event.cost_assignments || {},
+              costAssignments: event.cost_assignments || {},  // Transform field name
               payments: event.payments || {}
             }))
             .sort((a, b) => a.start - b.start);
@@ -79,7 +94,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           setEvents([]);
         }
 
-        // Fetch trip members
+        // 3. Fetch full details for each trip member
         const memberPromises = localTrip.members.map(async (memberId) => {
           const response = await fetch(url + '/profiles/id/' + memberId, {
             method: 'GET',
@@ -110,6 +125,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
     }
   }, [localTrip._id, url]);
 
+  // Calculate total cost for current user (sum of their split costs)
   const getUserTotalCost = () => {
     let total = 0;
     events.forEach(event => {
@@ -123,23 +139,29 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
     return total;
   };
 
+  // Calculate total cost of all events in the trip
   const getTripTotalCost = () => {
     return events.reduce((sum, event) => sum + (event.cost || 0), 0);
   };
 
+  // Open event modal for editing
   const handleSelectEvent = (event) => {
     setSelectedEvent(event);
     setShowModal(true);
   };
 
+  // Open voting modal for conflicting events
   const handleVoteClick = (dayEvents) => {
     const groups = getConflictGroups(dayEvents);
     setConflictGroups(groups);
     setShowVotingModal(true);
   };
 
+  // Handle voting for an event in a conflict group
+  // Removes vote from other conflicting events and adds to selected event
   const handleVote = async (eventId, conflictingEvs) => {
     try {
+      // Remove current user's vote from other conflicting events
       for (const event of conflictingEvs) {
         if ((event.votes || []).includes(currentID) && event._id !== eventId) {
           const updatedVotes = event.votes.filter(id => id !== currentID);
@@ -276,6 +298,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
     }
   };
 
+  // Create a new event and add to local state
   const handleCreateEvent = async (eventData) => {
     try {
       const response = await fetch(url + "/events", {
@@ -287,7 +310,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
           ...eventData,
           trip_id: localTrip._id,
           creator: currentID,
-          cost_assignments: eventData.costAssignments || {},
+          cost_assignments: eventData.costAssignments || {},  // Transform to snake_case for backend
           votes: [],
           payments: eventData.payments || {}
         })
@@ -296,6 +319,7 @@ function Itinerary({ setCurrentPage, theme, toggleTheme, currentUser, currentID,
       const data = await response.json();
 
       if (data.success) {
+        // Transform backend response and add to events list
         const newEvent = {
           ...data.event,
           start: new Date(data.event.start),

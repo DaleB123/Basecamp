@@ -1,3 +1,9 @@
+/**
+ * Voting Modal - view time conflict groups and vote on preferred events
+ * Features: Conflict group display, per-event voting, leading event highlight
+ * Voting: One vote per conflict group, vote removal option
+ */
+
 import React, { useState, useEffect } from 'react';
 import { CheckIcon, TrashIcon } from './Icons';
 import { getEventIcon } from '../utils/eventUtils';
@@ -7,9 +13,11 @@ const VotingModal = ({ isOpen, onClose, conflictGroups, currentTrip, currentID, 
   const [votes, setVotes] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  // Initialize vote counts from conflict groups when modal opens
   useEffect(() => {
     if (isOpen && conflictGroups.length > 0) {
       const voteData = {};
+      // Extract existing votes from each event
       conflictGroups.forEach(group => {
         group.events.forEach(event => {
           voteData[event._id] = event.votes || [];
@@ -19,19 +27,21 @@ const VotingModal = ({ isOpen, onClose, conflictGroups, currentTrip, currentID, 
     }
   }, [isOpen, conflictGroups]);
 
+  // Handle voting for an event (removes vote from other events in the same conflict group)
   const handleVote = async (eventId, groupIndex) => {
     setIsLoading(true);
     
     const group = conflictGroups[groupIndex];
     const allEventIds = group.events.map(e => e._id);
     
+    // Call parent handler to update backend
     await onVote(eventId, group.events);
     
-    // Update local votes state immediately
+    // Optimistically update local state for immediate UI feedback
     setVotes(prev => {
       const newVotes = { ...prev };
       
-      // Remove current user's vote from all events in this conflict group
+      // Remove user's vote from all other events in this conflict group (only one vote allowed)
       allEventIds.forEach(id => {
         if (newVotes[id]) {
           newVotes[id] = newVotes[id].filter(voterId => voterId !== currentID);
@@ -52,14 +62,16 @@ const VotingModal = ({ isOpen, onClose, conflictGroups, currentTrip, currentID, 
     setIsLoading(false);
   };
 
+  // Remove user's vote from an event
   const handleRemoveVote = async (eventId, groupIndex) => {
     setIsLoading(true);
     
     const group = conflictGroups[groupIndex];
     
+    // Call parent handler to update backend
     await onRemoveVote(eventId, group.events);
     
-    // Update local votes state immediately
+    // Update local state to remove vote immediately
     setVotes(prev => {
       const newVotes = { ...prev };
       
@@ -73,6 +85,7 @@ const VotingModal = ({ isOpen, onClose, conflictGroups, currentTrip, currentID, 
     setIsLoading(false);
   };
 
+  // Check which event (if any) the current user has voted for in a conflict group
   const getUserVoteInGroup = (groupEvents) => {
     for (const event of groupEvents) {
       if (votes[event._id]?.includes(currentID)) {
