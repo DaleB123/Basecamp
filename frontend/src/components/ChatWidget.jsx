@@ -1,37 +1,47 @@
+/**
+ * ChatWidget Component - Floating chat interface for trip communication
+ * Features: Real-time messaging, auto-scroll, message history, polling updates
+ * Displays as a collapsible floating button/window in the bottom-right corner
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatIcon, SendIcon, XMarkIcon } from './Icons';
 import moment from 'moment';
 
 const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef(null);
-  const scrollContainerRef = useRef(null);
+  // UI states
+  const [isOpen, setIsOpen] = useState(false);  // Controls widget expand/collapse
+  const [messages, setMessages] = useState([]);  // All chat messages for this trip
+  const [newMessage, setNewMessage] = useState('');  // Current input field value
+  
+  // Refs for scroll management
+  const messagesEndRef = useRef(null);  // Reference to bottom of message list
+  const scrollContainerRef = useRef(null);  // Reference to scrollable container
+  
   const url = "http://localhost:8000";
 
+  // Don't render chat if no trip is selected
   if (!currentTrip) return null;
 
+  // Smooth scroll to the bottom of the message list
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Scroll to bottom when opening chat
+  // Auto-scroll to bottom when chat is first opened
   useEffect(() => {
     if (isOpen) {
       scrollToBottom();
     }
   }, [isOpen]);
 
-  // Smart scroll: only scroll if user was already near bottom
+  // Smart scroll: only auto-scroll if user was already near the bottom
+  // This prevents interrupting users who are reading old messages
   useEffect(() => {
     if (!isOpen || !scrollContainerRef.current) return;
     
     const { scrollHeight, scrollTop, clientHeight } = scrollContainerRef.current;
-    // If we are within 150px of the bottom, auto-scroll
-    // Note: This runs after render, so scrollHeight includes new messages.
-    // We approximate "was at bottom" by checking if the distance to bottom is relatively small
-    // (meaning the user hasn't scrolled way up)
+    // If user is within 200px of the bottom, assume they want to see new messages
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
     
     if (isNearBottom) {
@@ -39,21 +49,24 @@ const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
     }
   }, [messages]);
 
+  // Polling effect: fetch messages when chat is open, then every 3 seconds
   useEffect(() => {
     let interval;
     if (isOpen) {
-      fetchMessages();
-      interval = setInterval(fetchMessages, 3000); // Poll every 3 seconds
+      fetchMessages();  // Initial fetch
+      interval = setInterval(fetchMessages, 3000);  // Poll for new messages every 3 seconds
     }
-    return () => clearInterval(interval);
+    return () => clearInterval(interval);  // Cleanup on unmount or close
   }, [isOpen, currentTrip._id]);
 
+  // Fetch all messages for the current trip from the backend
   const fetchMessages = async () => {
     try {
       const response = await fetch(`${url}/calendars/${currentTrip._id}/messages`);
       const data = await response.json();
       if (data.success && data.messages) {
-        // Only update state if messages are different to avoid unnecessary re-renders
+        // Optimize: only update state if messages actually changed
+        // This prevents unnecessary re-renders and scroll jumps
         setMessages(prev => {
           if (JSON.stringify(prev) !== JSON.stringify(data.messages)) {
             return data.messages;
@@ -61,19 +74,21 @@ const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
           return prev;
         });
       } else if (data.success && !data.messages) {
-          setMessages([]);
+          setMessages([]);  // Empty chat
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
   };
 
+  // Handle sending a new message
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim()) return;  // Ignore empty messages
 
+    // Build message object with required fields
     const message = {
-      id: Date.now().toString(),
+      id: Date.now().toString(),  // Temporary ID (backend generates its own)
       sender_id: String(currentID || "anonymous"),
       sender_username: String(currentUser || "Anonymous"),
       text: String(newMessage),
@@ -82,14 +97,15 @@ const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
 
     console.log("Sending message payload:", message);
 
-    // Optimistic update
+    // Optimistic update: show message immediately for better UX
     setMessages(prev => [...prev, message]);
-    setNewMessage('');
+    setNewMessage('');  // Clear input field
     
-    // Force scroll to bottom when I send a message
+    // Force scroll to bottom when user sends a message
     setTimeout(scrollToBottom, 100);
 
     try {
+      // Send message to backend
       const response = await fetch(`${url}/calendars/${currentTrip._id}/messages`, {
         method: 'POST',
         headers: {
@@ -103,7 +119,7 @@ const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
         console.error("Failed to send message:", response.status, errorText);
       } else {
           console.log("Message sent successfully");
-          fetchMessages(); // Sync with server to be sure
+          fetchMessages();  // Re-sync with server to get authoritative message list
       }
     } catch (error) {
       console.error("Error sending message:", error);
@@ -137,10 +153,10 @@ const ChatWidget = ({ currentTrip, currentUser, currentID }) => {
               <div className="text-center text-gray-500 mt-10">No messages yet. Say hi!</div>
             ) : (
               messages.map((msg, index) => {
-                const isMe = msg.sender_id === String(currentID);
+                const isMe = msg.sender_id === String(currentID);  // Check if current user sent this
                 const nextMsg = messages[index + 1];
                 const isNextSameSender = nextMsg && nextMsg.sender_id === msg.sender_id;
-                // Check if next message is within 5 minutes
+                // Only show timestamp if next message is from different sender or >5 mins later
                 const isNextClose = nextMsg && moment(nextMsg.timestamp).diff(moment(msg.timestamp), 'minutes') < 5;
                 const showTimestamp = !isNextSameSender || !isNextClose;
 

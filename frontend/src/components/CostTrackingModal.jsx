@@ -1,40 +1,52 @@
+/**
+ * CostTrackingModal Component - View and manage event costs across all trip members
+ * Features: Per-member cost breakdown, payment status tracking, event-level detail
+ * Calculates split costs based on costAssignments from events
+ */
+
 import React, { useState, useEffect } from 'react';
 import { CheckIcon } from './Icons';
 import moment from 'moment';
 
 const CostTrackingModal = ({ isOpen, onClose, events, tripMembers, currentID, onMarkPaid }) => {
-  const [memberCosts, setMemberCosts] = useState({});
-  const [payments, setPayments] = useState({});
+  // State for calculated member costs and payment tracking
+  const [memberCosts, setMemberCosts] = useState({});  // Maps memberId -> { total, events, username }
+  const [payments, setPayments] = useState({});  // Maps eventId -> { memberId -> isPaid }
 
+  // Recalculate costs whenever modal opens or data changes
   useEffect(() => {
     if (isOpen && events.length > 0) {
       calculateMemberCosts();
     }
   }, [isOpen, events, tripMembers]);
 
+  // Calculate per-member costs from all events with cost splitting
   const calculateMemberCosts = () => {
     const costs = {};
     const paymentTracking = {};
 
-    // Initialize all members
+    // Initialize data structure for all members
     tripMembers.forEach(member => {
       costs[member._id] = {
-        total: 0,
-        events: [],
+        total: 0,  // Running total of all assigned costs
+        events: [],  // Array of events this member is assigned to
         username: member.username
       };
     });
 
-    // Calculate costs for each event
+    // Process each event and split costs among assigned members
     events.forEach(event => {
       if (event.cost > 0 && event.costAssignments) {
+        // Get list of members who have this cost assigned to them
         const assignedMembers = Object.entries(event.costAssignments)
           .filter(([_, assigned]) => assigned)
           .map(([memberId]) => memberId);
 
         if (assignedMembers.length > 0) {
+          // Split cost evenly among assigned members
           const costPerPerson = event.cost / assignedMembers.length;
 
+          // Add this event's cost to each assigned member's total
           assignedMembers.forEach(memberId => {
             if (costs[memberId]) {
               costs[memberId].total += costPerPerson;
@@ -46,7 +58,7 @@ const CostTrackingModal = ({ isOpen, onClose, events, tripMembers, currentID, on
             }
           });
 
-          // Initialize payment tracking
+          // Track payment status for this event
           if (!paymentTracking[event._id]) {
             paymentTracking[event._id] = event.payments || {};
           }
@@ -58,12 +70,14 @@ const CostTrackingModal = ({ isOpen, onClose, events, tripMembers, currentID, on
     setPayments(paymentTracking);
   };
 
+  // Toggle payment status for a specific event and member
   const handleTogglePayment = async (eventId, memberId) => {
     const newPaymentStatus = !(payments[eventId]?.[memberId] || false);
     
+    // Update backend
     await onMarkPaid(eventId, memberId, newPaymentStatus);
     
-    // Update local state
+    // Update local state optimistically
     setPayments(prev => ({
       ...prev,
       [eventId]: {
@@ -72,14 +86,16 @@ const CostTrackingModal = ({ isOpen, onClose, events, tripMembers, currentID, on
       }
     }));
 
-    // Recalculate costs
+    // Refresh cost calculations to reflect new payment status
     calculateMemberCosts();
   };
 
+  // Calculate total cost across all members for the entire trip
   const getTripTotal = () => {
     return Object.values(memberCosts).reduce((sum, member) => sum + member.total, 0);
   };
 
+  // Calculate total paid amount for a specific member
   const getMemberPaidAmount = (memberId) => {
     const member = memberCosts[memberId];
     if (!member) return 0;
@@ -89,6 +105,7 @@ const CostTrackingModal = ({ isOpen, onClose, events, tripMembers, currentID, on
       .reduce((sum, event) => sum + event.costPerPerson, 0);
   };
 
+  // Calculate total unpaid amount for a specific member
   const getMemberUnpaidAmount = (memberId) => {
     const member = memberCosts[memberId];
     if (!member) return 0;

@@ -1,19 +1,30 @@
+/**
+ * EventModal Component - Create/Edit itinerary events with cost splitting
+ * Features: Time selection, event type, location, cost assignment to members
+ * Cost splitting: Evenly divides cost among selected trip members
+ */
+
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 
 const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tripMembers, currentID }) => {
+  // Form field states
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('12:00');
   const [endTime, setEndTime] = useState('13:00');
   const [details, setDetails] = useState('');
   const [type, setType] = useState('');
   const [location, setLocation] = useState('');
-  const [cost, setCost] = useState('');
-  const [displayCost, setDisplayCost] = useState('');
-  const [costAssignments, setCostAssignments] = useState({});
+  
+  // Cost tracking states
+  const [cost, setCost] = useState('');  // Numeric value for calculations
+  const [displayCost, setDisplayCost] = useState('');  // Formatted display value
+  const [costAssignments, setCostAssignments] = useState({});  // Maps memberId -> boolean
 
+  // Initialize/reset form when modal opens or event changes
   useEffect(() => {
     if (eventInfo) {
+      // Editing existing event - populate all fields
       setTitle(eventInfo.title || '');
       setStartTime(eventInfo.start ? moment(eventInfo.start).format('HH:mm') : '12:00');
       setEndTime(eventInfo.end ? moment(eventInfo.end).format('HH:mm') : '13:00');
@@ -24,11 +35,11 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
       setCost(costValue);
       setDisplayCost(costValue.toFixed(2));
       
-      // Initialize cost assignments from costAssignments field
+      // Load existing cost assignments
       if (eventInfo.costAssignments) {
         setCostAssignments(eventInfo.costAssignments);
       } else {
-        // Default: assign to creator only
+        // Fallback: assign to creator only
         const defaultAssignments = {};
         tripMembers.forEach(member => {
           defaultAssignments[member._id] = member._id === currentID;
@@ -54,6 +65,7 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
     }
   }, [eventInfo, isOpen, tripMembers, currentID]);
 
+  // Toggle cost assignment for a specific member
   const handleCostAssignmentToggle = (memberId) => {
     setCostAssignments(prev => ({
       ...prev,
@@ -61,6 +73,7 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
     }));
   };
 
+  // Assign cost to all trip members
   const handleSelectAll = () => {
     const allSelected = {};
     tripMembers.forEach(member => {
@@ -69,6 +82,7 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
     setCostAssignments(allSelected);
   };
 
+  // Remove cost assignment from all members
   const handleDeselectAll = () => {
     const allDeselected = {};
     tripMembers.forEach(member => {
@@ -77,17 +91,21 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
     setCostAssignments(allDeselected);
   };
 
+  // Count how many members have the cost assigned
   const getAssignedCount = () => {
     return Object.values(costAssignments).filter(assigned => assigned).length;
   };
 
+  // Calculate per-person cost (total cost / number of assigned members)
   const getCostPerPerson = () => {
     const assignedCount = getAssignedCount();
     if (assignedCount === 0) return 0;
     return parseFloat(cost) / assignedCount;
   };
 
+  // Handle new event creation with validation
   const handleCreate = () => {
+    // Validation: Required fields
     if (!title) {
       alert("Please enter a title.");
       return;
@@ -100,16 +118,18 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
       alert("Please select an event type.");
       return;
     }
+    // Validation: Cost must be assigned to at least one person
     if (getAssignedCount() === 0 && parseFloat(cost) > 0) {
       alert("Please assign the cost to at least one person.");
       return;
     }
 
+    // Combine date from eventInfo with time from inputs
     const date = moment(eventInfo.start).format('YYYY-MM-DD');
     const start = moment(`${date} ${startTime}`).toDate();
     const end = moment(`${date} ${endTime}`).toDate();
 
-    // Initialize payments based on cost assignments (all start as unpaid/false)
+    // Initialize payment tracking - all assigned members start as unpaid
     const initialPayments = {};
     Object.keys(costAssignments).forEach(memberId => {
       if (costAssignments[memberId]) {
@@ -131,7 +151,9 @@ const EventModal = ({ isOpen, onClose, onCreate, onSave, onDelete, eventInfo, tr
     });
   };
 
+  // Handle existing event update with validation
   const handleSave = () => {
+    // Same validation as create
     if (!title) {
       alert("Please enter a title.");
       return;

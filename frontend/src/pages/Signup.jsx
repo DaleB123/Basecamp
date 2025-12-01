@@ -1,31 +1,41 @@
+/**
+ * Signup Page - New user registration interface
+ * Features: Multi-field form, password confirmation, validation, error messages
+ * On success: Creates account, sets session, and navigates to home page
+ */
+
 import React, { useState, useEffect } from "react";
 
 function Signup({ setCurrentPage, theme, setCurrentUser, setCurrentID }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  // Form field states
+  const [firstName, setFirstName] = useState("");  // First name input
+  const [lastName, setLastName] = useState("");  // Last name input
+  const [username, setUsername] = useState("");  // Desired username
+  const [email, setEmail] = useState("");  // Email address
+  const [password, setPassword] = useState("");  // Password
+  const [confirmPassword, setConfirmPassword] = useState("");  // Password confirmation
+  const [message, setMessage] = useState("");  // Success/error message
 
   const url = "http://localhost:8000";
 
+  // Handle signup form submission with validation
   const handleSignup = async (e) => {
-    e.preventDefault(); // Prevent form from refreshing the page
+    e.preventDefault();  // Prevent page refresh
 
+    // Validation: ensure all fields are filled
     if (!username || !password || !firstName || !lastName || !email) {
       setMessage("Please fill in all fields.");
       return;
     }
 
+    // Validation: passwords must match
     if (password !== confirmPassword) {
       setMessage("Passwords do not match!");
       return;
     }
 
     try {
-      // Only make the POST request. The backend handles the check.
+      // Send registration data to backend
       const postResponse = await fetch(url+"/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

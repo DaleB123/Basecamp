@@ -8,7 +8,11 @@ from datetime import date, datetime
 from typing import List, Optional
 import os
 
-# Create Pydantic models for request validation
+# ============================================================================
+# PYDANTIC MODELS - Define request/response schemas for API validation
+# ============================================================================
+
+# Model for user signup with all required profile information
 class UserCredentials(BaseModel):
     first_name: str
     last_name: str
@@ -16,10 +20,12 @@ class UserCredentials(BaseModel):
     email: str
     password: str
 
+# Model for user login with username and password
 class LoginCredentials(BaseModel):
     username: str
     password: str
 
+# Model for individual packing list items with ownership and sharing info
 class PackingItem(BaseModel):
     id: str
     text: str
@@ -28,6 +34,7 @@ class PackingItem(BaseModel):
     is_shared: bool
     owner_id: str
 
+# Model for chat messages in trip conversations
 class ChatMessage(BaseModel):
     id: str
     sender_id: str
@@ -36,8 +43,9 @@ class ChatMessage(BaseModel):
     timestamp: str
 
     class Config:
-        extra = "ignore"
+        extra = "ignore"  # Ignore any extra fields not defined in the model
 
+# Model for trip/calendar creation and updates
 class Trip(BaseModel):
     owner: str
     name: str
@@ -47,6 +55,7 @@ class Trip(BaseModel):
     members: list
     packing_list: List[PackingItem] = []
 
+# Model for profile updates (includes old_username for identification)
 class Profile(BaseModel):
     old_username: str
     username: str
@@ -55,6 +64,7 @@ class Profile(BaseModel):
     last_name: str
     date_created: str
 
+# Model for itinerary events with cost splitting functionality
 class Event(BaseModel):
     trip_id: str
     creator: str
@@ -64,41 +74,50 @@ class Event(BaseModel):
     type: str
     location: str
     cost: float
-    cost_assignments: dict = {}
+    cost_assignments: dict = {}  # Maps user_id -> boolean (who the cost is assigned to)
     details: str
-    votes: list = []
-    payments: dict = {}
+    votes: list = []  # List of user_ids who voted for this event (for conflict resolution)
+    payments: dict = {}  # Maps user_id -> boolean (payment status: paid/unpaid)
 
+# Model for password change requests
 class PasswordUpdate(BaseModel):
     username: str
     currentPassword: str
     newPassword: str
 
+# Model for trip invitations sent to other users
 class Invitation(BaseModel):
     trip_id: str
     inviter_id: str
     invitee_username: str
 
+# ============================================================================
+# APPLICATION SETUP
+# ============================================================================
+
 app = FastAPI()
 
+# MongoDB connection and database/collection references
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://TripSync:1a2qYb9vOavPeMtw@tripsync.kl0if1g.mongodb.net/")
 client = MongoClient(MONGO_URI)
 logins = client["Logins"]
-users = logins["Accounts"]
+users = logins["Accounts"]  # User account information
 trips = client["Trips"]
-calendars = trips["Calendars"]
-events = trips["Events"]
-invitations = trips["Invitations"]
-messages_collection = trips["Messages"]
+calendars = trips["Calendars"]  # Trip/calendar data
+events = trips["Events"]  # Itinerary events
+invitations = trips["Invitations"]  # Pending trip invitations
+messages_collection = trips["Messages"]  # Trip chat messages
 
+# Enable CORS for React frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000"],  # React dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Global exception handler for request validation errors
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print(f"Validation error: {exc.errors()}")
@@ -107,16 +126,24 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"detail": exc.errors(), "body": str(exc.body)},
     )
 
+# ============================================================================
+# BASIC ENDPOINTS
+# ============================================================================
+
 @app.get("/")
 def read_root():
     return {"message": "Hello from FastAPI + MongoDB"}
 
+# ============================================================================
+# USER PROFILE ENDPOINTS
+# ============================================================================
+
 @app.get("/profiles/{username}")
 async def get_profile(username: str):
+    """Get user profile by username"""
     if not username:
         raise HTTPException(status_code=400, detail="Username is required.")
     
-    # Find the user in the database
     user = users.find_one({"username": username})
     
     if user:
@@ -127,6 +154,7 @@ async def get_profile(username: str):
 
 @app.post("/profiles")
 async def update_profile(profile: Profile):
+    """Update user profile information"""
     old_username = profile.old_username
     username = profile.username
     email = profile.email
@@ -136,10 +164,11 @@ async def update_profile(profile: Profile):
     if not username:
         return {"success": False, "message": "Username is required."}
     
-    # Check if the new username already exists and is different from the old one)
+    # Ensure new username isn't already taken by another user
     if users.find_one({"username": username}) and username != old_username:
         return {"success": False, "message": "Username already exists."}
     
+    # Ensure new email isn't already in use by another user
     if email != "" and users.find_one({"email": email, "username": {"$ne": old_username}}):
         return {"success": False, "message": "Email already in use."}
 
@@ -161,6 +190,7 @@ async def update_profile(profile: Profile):
 
 @app.get("/profiles/id/{user_id}")
 async def get_profile_by_id(user_id: str):
+    """Get user profile by MongoDB ObjectId (used for fetching trip members)"""
     from bson import ObjectId
     try:
         user = users.find_one({"_id": ObjectId(user_id)})
@@ -175,17 +205,17 @@ async def get_profile_by_id(user_id: str):
 
 @app.post("/profiles/password")
 async def update_password(password_data: PasswordUpdate):
+    """Update user password with current password verification"""
     username = password_data.username
     current_password = password_data.currentPassword
     new_password = password_data.newPassword
 
-    # Find the user
     user = users.find_one({"username": username})
 
     if not user:
         return {"success": False, "message": "User not found"}
 
-    # Verify current password
+    # Verify current password before allowing change
     if user["password"] != current_password:
         return {"success": False, "message": "Current password is incorrect"}
 
@@ -201,6 +231,7 @@ async def update_password(password_data: PasswordUpdate):
 
 @app.delete("/profiles/{username}")
 async def delete_user(username: str):
+    """Delete a user account"""
     if not username:
         raise HTTPException(status_code=400, detail="Username is required.")
     
@@ -210,18 +241,22 @@ async def delete_user(username: str):
         return {"success": True, "message": "User deleted successfully"}
     return {"success": False, "message": "User not found"}
 
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
 @app.post("/login")
 async def login(credentials: LoginCredentials):
+    """Authenticate user and return user ID on success"""
     username = credentials.username
     password = credentials.password
 
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password are required.")
 
-    # Find the user in the database
     user = users.find_one({"username": username})
 
-    # Check if user exists and password is correct
+    # Verify credentials and return user ID for session management
     if user and user["password"] == password:
         return {"success": True, "message": "Login successful!", "id": str(user["_id"])}
     
@@ -229,6 +264,7 @@ async def login(credentials: LoginCredentials):
 
 @app.post("/signup")
 async def signup(credentials: UserCredentials):
+    """Create a new user account"""
     first_name = credentials.first_name
     last_name = credentials.last_name
     username = credentials.username
@@ -239,11 +275,11 @@ async def signup(credentials: UserCredentials):
     if not username or not password:
         return {"success": False, "message": "Username and password are required."}
 
-    # Check if username already exists
+    # Ensure username is unique
     if users.find_one({"username": username}):
         return {"success": False, "message": "Username already exists."}
     
-    # Check if email already exists
+    # Ensure email is unique
     if users.find_one({"email": email}):
         return {"success": False, "message": "Email already exists."}
 
@@ -259,9 +295,14 @@ async def signup(credentials: UserCredentials):
 
     return {"success": True, "message": "Signup successful!", "id": str(result.inserted_id)}
 
+# ============================================================================
+# TRIP/CALENDAR ENDPOINTS
+# ============================================================================
+
 @app.get("/calendars/users/{id}")
-async def get_calendars(id: str):    
-    # Find all calendar documents where user is owner or member
+async def get_calendars(id: str):
+    """Get all trips where user is owner or member"""
+    # Find all trips the user owns or is a member of
     user_calendars = list(calendars.find({
         "$or": [
             {"owner": id},
@@ -280,6 +321,7 @@ async def get_calendars(id: str):
 
 @app.get("/calendars/{id}")
 async def get_calendar(id: str):
+    """Get a single trip by ID (includes packing list)"""
     from bson import ObjectId
     try:
         calendar = calendars.find_one({"_id": ObjectId(id)})
@@ -291,8 +333,9 @@ async def get_calendar(id: str):
         return {"success": False, "message": "Invalid ID"}
 
 @app.post("/calendars")
-async def create_calendar(trip: Trip): 
-    # Create new calendar document
+async def create_calendar(trip: Trip):
+    """Create a new trip/calendar"""
+    # Build trip document with all fields including empty packing list
     new_trip = {
         "owner": trip.owner,
         "name": trip.name,
@@ -305,7 +348,7 @@ async def create_calendar(trip: Trip):
     
     result = calendars.insert_one(new_trip)
     
-    # Get the created document and return it
+    # Return the newly created trip with its generated ID
     created_trip = calendars.find_one({"_id": result.inserted_id})
     created_trip["_id"] = str(created_trip["_id"])
     
@@ -313,6 +356,7 @@ async def create_calendar(trip: Trip):
 
 @app.put("/calendars/{id}")
 async def update_calendar(id: str, trip: Trip):
+    """Update trip details (name, dates, description, members, packing list)"""
     from bson import ObjectId
     update_data = {
         "owner": trip.owner,
@@ -321,7 +365,7 @@ async def update_calendar(id: str, trip: Trip):
         "end": trip.end,
         "description": trip.description,
         "members": trip.members,
-        "packing_list": [item.dict() for item in trip.packing_list]
+        "packing_list": [item.dict() for item in trip.packing_list]  # Convert Pydantic models to dicts
     }
     result = calendars.update_one({"_id": ObjectId(id)}, {"$set": update_data})
     if result.matched_count == 1:
@@ -332,14 +376,16 @@ async def update_calendar(id: str, trip: Trip):
 
 @app.post("/calendars/{id}/messages")
 async def add_message(id: str, message: ChatMessage):
+    """Add a message to trip chat"""
     print(f"Adding message to trip {id}: {message}")
     msg_data = message.dict()
-    msg_data["trip_id"] = id
+    msg_data["trip_id"] = id  # Associate message with trip
     messages_collection.insert_one(msg_data)
     return {"success": True, "message": "Message added successfully"}
 
 @app.get("/calendars/{id}/messages")
 async def get_messages(id: str):
+    """Get all chat messages for a trip"""
     print(f"Getting messages for trip {id}")
     trip_messages = list(messages_collection.find({"trip_id": id}))
     for msg in trip_messages:
@@ -348,12 +394,15 @@ async def get_messages(id: str):
 
 @app.delete("/calendars/{id}")
 async def delete_calendar(id: str):
+    """Delete a trip and all associated data (events, invitations)"""
     from bson import ObjectId
     result = calendars.delete_one({"_id": ObjectId(id)})
 
+    # Delete all events associated with this trip
     trip_events = list(events.find({"trip_id": id}))
     for event in trip_events:
         events.delete_one({"_id": ObjectId(event["_id"])})
+    
     # Delete any pending invitations for this trip
     invitations.delete_many({"trip_id": id})
 
@@ -361,8 +410,13 @@ async def delete_calendar(id: str):
         return {"success": True, "message": "Trip deleted successfully."}
     return {"success": False, "message": "Trip not found."}
 
+# ============================================================================
+# EVENT/ITINERARY ENDPOINTS
+# ============================================================================
+
 @app.post("/events")
 async def create_event(event: Event):
+    """Create a new itinerary event with cost splitting"""
     new_event = {
         "trip_id": event.trip_id,
         "creator": event.creator,
@@ -372,10 +426,10 @@ async def create_event(event: Event):
         "type": event.type,
         "location": event.location,
         "cost": event.cost,
-        "cost_assignments": event.cost_assignments,
+        "cost_assignments": event.cost_assignments,  # Who the cost is split between
         "details": event.details,
-        "votes": event.votes,
-        "payments": event.payments
+        "votes": event.votes,  # For conflict resolution voting
+        "payments": event.payments  # Payment status tracking
     }
     result = events.insert_one(new_event)
 
@@ -385,7 +439,8 @@ async def create_event(event: Event):
 
 @app.get("/events/trip/{trip_id}")
 async def get_events(trip_id: str):
-    # Find all event documents associated with the trip_id
+    """Get all events for a specific trip"""
+    # Find all events associated with the trip
     trip_events = list(events.find({"trip_id": trip_id}))
     
     # Convert ObjectId to string for JSON serialization
@@ -399,6 +454,7 @@ async def get_events(trip_id: str):
 
 @app.delete("/events/{event_id}")
 async def delete_event(event_id: str):
+    """Delete an event from the itinerary"""
     from bson import ObjectId
     result = events.delete_one({"_id": ObjectId(event_id)})
     if result.deleted_count == 1:
@@ -407,6 +463,7 @@ async def delete_event(event_id: str):
 
 @app.put("/events/{event_id}")
 async def update_event(event_id: str, event: Event):
+    """Update event details, votes, cost assignments, or payment status"""
     from bson import ObjectId
     update_data = {
         "trip_id": event.trip_id,
@@ -417,10 +474,10 @@ async def update_event(event_id: str, event: Event):
         "type": event.type,
         "location": event.location,
         "cost": event.cost,
-        "cost_assignments": event.cost_assignments, 
+        "cost_assignments": event.cost_assignments,  # Updated cost splitting
         "details": event.details,
-        "votes": event.votes,
-        "payments": event.payments
+        "votes": event.votes,  # Updated votes for conflict resolution
+        "payments": event.payments  # Updated payment status
     }
     result = events.update_one({"_id": ObjectId(event_id)}, {"$set": update_data})
     if result.matched_count == 1:
@@ -429,17 +486,21 @@ async def update_event(event_id: str, event: Event):
         return {"success": True, "event": updated_event}
     return {"success": False, "message": "Event not found."}
 
-# Invitation endpoints
+# ============================================================================
+# INVITATION ENDPOINTS - Trip member invitation system
+# ============================================================================
+
 @app.post("/invitations")
 async def create_invitation(invitation: Invitation):
-    # Check if invitee exists
+    """Send a trip invitation to another user"""
+    # Verify invitee exists
     invitee = users.find_one({"username": invitation.invitee_username})
     if not invitee:
         return {"success": False, "message": "User not found."}
     
     invitee_id = str(invitee["_id"])
     
-    # Check if invitation already exists
+    # Prevent duplicate invitations
     existing = invitations.find_one({
         "trip_id": invitation.trip_id,
         "invitee_id": invitee_id
@@ -447,13 +508,13 @@ async def create_invitation(invitation: Invitation):
     if existing:
         return {"success": False, "message": "Invitation already sent."}
     
-    # Check if user is already a member
+    # Don't allow inviting existing members
     from bson import ObjectId
     trip = calendars.find_one({"_id": ObjectId(invitation.trip_id)})
     if trip and invitee_id in trip.get("members", []):
         return {"success": False, "message": "User is already a member of this trip."}
     
-    # Create invitation
+    # Create the invitation with timestamp
     new_invitation = {
         "trip_id": invitation.trip_id,
         "inviter_id": invitation.inviter_id,
@@ -469,13 +530,14 @@ async def create_invitation(invitation: Invitation):
 
 @app.get("/invitations/{user_id}")
 async def get_invitations(user_id: str):
-    # Get all invitations for the user
+    """Get all pending invitations for a user with trip and inviter details"""
+    # Find all invitations for this user
     user_invitations = list(invitations.find({
         "invitee_id": user_id
     }))
     
     from bson import ObjectId
-    # Enrich invitations with trip and inviter details
+    # Enrich invitations with trip name/dates and inviter username
     enriched_invitations = []
     for inv in user_invitations:
         trip = calendars.find_one({"_id": ObjectId(inv["trip_id"])})
@@ -493,22 +555,23 @@ async def get_invitations(user_id: str):
 
 @app.post("/invitations/{invitation_id}/accept")
 async def accept_invitation(invitation_id: str):
+    """Accept a trip invitation and add user to trip members"""
     from bson import ObjectId
     
     invitation = invitations.find_one({"_id": ObjectId(invitation_id)})
     if not invitation:
         return {"success": False, "message": "Invitation not found."}
     
-    # Add user to trip members
     trip_id = invitation["trip_id"]
     invitee_id = invitation["invitee_id"]
     
+    # Add user to trip's member list ($addToSet prevents duplicates)
     result = calendars.update_one(
         {"_id": ObjectId(trip_id)},
         {"$addToSet": {"members": invitee_id}}
     )
     
-    # Delete the invitation
+    # Remove the invitation after acceptance
     invitations.delete_one({"_id": ObjectId(invitation_id)})
     
     if result.matched_count == 1:
@@ -517,9 +580,10 @@ async def accept_invitation(invitation_id: str):
 
 @app.post("/invitations/{invitation_id}/reject")
 async def reject_invitation(invitation_id: str):
+    """Reject a trip invitation"""
     from bson import ObjectId
     
-    # Delete the invitation
+    # Simply delete the invitation without adding user to trip
     result = invitations.delete_one({"_id": ObjectId(invitation_id)})
     
     if result.deleted_count == 1:
@@ -528,12 +592,13 @@ async def reject_invitation(invitation_id: str):
 
 @app.get("/invitations/trip/{trip_id}")
 async def get_trip_invitations(trip_id: str):
-    # Get all invitations for a specific trip
+    """Get all pending invitations for a specific trip (for trip owner to view)"""
+    # Find all pending invitations for this trip
     trip_invitations = list(invitations.find({
         "trip_id": trip_id
     }))
     
-    # Enrich invitations with invitee details
+    # Enrich with invitee usernames for display
     enriched_invitations = []
     for inv in trip_invitations:
         from bson import ObjectId

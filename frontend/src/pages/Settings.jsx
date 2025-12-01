@@ -1,6 +1,23 @@
+/**
+ * Settings.jsx - User Profile and Account Management Component
+ * 
+ * Provides a comprehensive settings interface where users can:
+ * - View and edit their profile information (username, email, first name, last name)
+ * - Change their password with validation
+ * - Delete their account permanently
+ * 
+ * Features:
+ * - Edit mode toggle for profile updates
+ * - Password change with current password verification
+ * - Real-time validation and error messaging
+ * - Account deletion with confirmation prompt
+ */
+
 import React, { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 
+// Helper function to format date strings for display
+// Adds one day to compensate for timezone offset when displaying dates
 const formatDisplayDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -10,6 +27,7 @@ const formatDisplayDate = (dateString) => {
 };
 
 function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentUser, onLogout }) {
+  // User profile state - stores all profile fields
   const [userProfile, setUserProfile] = useState({
     username: currentUser || '',
     email: '',
@@ -17,20 +35,24 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
     lastName: '',
     joinedDate: ''
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  
+  // UI state management
+  const [isEditing, setIsEditing] = useState(false);  // Toggle edit mode for profile
+  const [error, setError] = useState(null);           // General error messages
+  const [isLoading, setIsLoading] = useState(true);   // Loading state while fetching profile
+  const [message, setMessage] = useState('');         // Success/error messages for profile updates
 
+  // Password change state - separate from profile to handle independently
   const [passwords, setPasswords] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  const [passwordError, setPasswordError] = useState('');
+  const [passwordError, setPasswordError] = useState('');  // Password-specific error messages
 
   const url = "http://localhost:8000";
 
+  // Fetch user profile data on component mount or when currentUser changes
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -38,6 +60,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
         const data = await response.json();
         
         if (data.success) {
+          // Transform backend snake_case to frontend camelCase
           setUserProfile({
             username: data.profile.username, 
             email: data.profile.email, 
@@ -61,6 +84,8 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
     }
   }, [currentUser, url]);
 
+  // Handle profile updates - sends updated profile to backend
+  // Transforms camelCase fields to snake_case for backend compatibility
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     try {
@@ -70,7 +95,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          old_username: currentUser,
+          old_username: currentUser,        // Used to identify which profile to update
           username: userProfile.username,
           first_name: userProfile.firstName,
           last_name: userProfile.lastName,
@@ -83,6 +108,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
       const data = await response.json();
       
       if (data.success) {
+        // Update current user context if username changed
         setCurrentUser(userProfile.username);
         setIsEditing(false);
         setError(null);
@@ -95,13 +121,15 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
     }
   };
 
+  // Handle password change with validation
+  // Validates password match and uniqueness before sending to backend
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     
     // Reset error states
     setPasswordError('');
     
-    // Validate passwords
+    // Client-side validation before API call
     if (passwords.newPassword !== passwords.confirmPassword) {
       setPasswordError('New passwords do not match');
       return;
@@ -143,6 +171,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
     }
   };
 
+  // Handle account deletion - requires confirmation and logs user out
   const handleDeleteAccount = async () => {
     if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       try {
@@ -151,6 +180,7 @@ function Settings({ setCurrentPage, theme, toggleTheme, currentUser, setCurrentU
         });
         const data = await response.json();
         if (data.success) {
+          // Log user out after successful deletion
           onLogout();
         } else {
           alert(data.message || "Failed to delete account");
